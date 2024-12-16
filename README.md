@@ -23,7 +23,7 @@ Após executar o comando reinicie o computador
 ## Executando
 
 Para rodar basta está com o arquivo aberto e apertar F5 para iniciar o compilador
-em seguida o VScode vai pedir para selecionar o compilador escolar a opção 'C++ (GDB/LLDB)''
+em seguida o VScode vai pedir para selecionar o compilador escolhar a opção 'C++ (GDB/LLDB)''
 
 ### Arquivo de configuração
 
