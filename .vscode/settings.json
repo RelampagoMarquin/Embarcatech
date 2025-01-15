@@ -55,5 +55,12 @@
   "C_Cpp_Runner.useLeakSanitizer": false,
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
-  "C_Cpp_Runner.msvcSecureNoWarnings": false
+  "C_Cpp_Runner.msvcSecureNoWarnings": false,
+  "files.associations": {
+    "cstdint": "c",
+    "pwm.h": "c"
+  },
+  "C_Cpp.errorSquiggles": "disabled",
+  "C_Cpp.default.compilerPath": "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\13.3 rel1\\binarm-none-eabi-gcc.exe",
+  "cmake.sourceDirectory": "C:/Users/marco/Documents/Embarcatech/Embarcatech/blink"
 }
