@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(atividade-6.2 atividade-6.2.c inc/ssd1306_i2c.c)
+add_executable(atividade-6.2 atividade-6.2.c buzzer_pwm/imperial-march.c pwm_led/pwm-led.c joystick_led/joystick-led.c inc/ssd1306_i2c.c)
 
 pico_set_program_name(atividade-6.2 "atividade-6.2")
 pico_set_program_version(atividade-6.2 "0.1")
@@ -58,10 +58,13 @@ target_include_directories(atividade-6.2 PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(atividade-6.2 
+        pico_stdlib
         hardware_i2c
         hardware_pio
-        hardware_adc 
+        hardware_adc
         hardware_pwm
+        hardware_gpio
+        hardware_clocks
         
         )
 
