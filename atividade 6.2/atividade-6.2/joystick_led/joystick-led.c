@@ -43,6 +43,7 @@ void joystick_read_axis_joystick_led(uint16_t *vrx_value, uint16_t *vry_value)
 // Função principal
 void joystick_led(int LED_B, int LED_R, uint16_t vrx_value, uint16_t vry_value, uint16_t sw_value)
 {
+  sleep_ms(50); // para evitar o bouce
   setup(LED_B, LED_R); // Chama a função de configuração
   // Loop principal
   int again = true;

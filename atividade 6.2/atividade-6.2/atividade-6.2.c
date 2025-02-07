@@ -35,6 +35,7 @@ const char *menu_options[] = {"Joystick Led", "Buzzer PWM", "Led PWM"};
 int menu_index = 0;
 int total_options = 3;
 
+
 // inicializa o joystick
 void setup_joystick()
 {
@@ -73,16 +74,18 @@ void joystick_read_axis(uint16_t *vrx_value, uint16_t *vry_value)
 // Função de exibir o menu
 void display_menu()
 {
+    
     struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
     calculate_render_area_buffer_length(&frame_area);
     uint8_t ssd[ssd1306_buffer_length];
     memset(ssd, 0, ssd1306_buffer_length);
 
+    ssd1306_draw_string(ssd, 5, 0, "    MENU    ");
     for (int i = 0; i < total_options; i++)
     {
-        char buffer[22] = {0};
+        char buffer[16] = {0};
         snprintf(buffer, sizeof(buffer), "%s%s", (i == menu_index) ? "x " : "", menu_options[i]);
-        ssd1306_draw_string(ssd, 5, (i + 1) * 10, buffer);
+        ssd1306_draw_string(ssd, 5, (i + 1) * 18, buffer);
     }
     render_on_display(ssd, &frame_area);
 }
@@ -97,12 +100,12 @@ void sub_menu()
 
     char buffer[22] = {0};
     snprintf(buffer, sizeof(buffer), "X sair");
-    ssd1306_draw_string(ssd, 5, 0, buffer);
+    ssd1306_draw_string(ssd, 5, 10, buffer);
 
     if(menu_index == 1){
-        ssd1306_draw_string(ssd, 5, 20, "Aguarde a pausa");
-        ssd1306_draw_string(ssd, 5, 28, "da musica para");
-        ssd1306_draw_string(ssd, 5, 36, "apertar e sair");
+        ssd1306_draw_string(ssd, 5, 24, "Aguarde a pausa");
+        ssd1306_draw_string(ssd, 5, 36, "da musica para");
+        ssd1306_draw_string(ssd, 5, 44, "apertar e sair");
     }
     render_on_display(ssd, &frame_area);
 }
@@ -123,6 +126,7 @@ void navigate_menu()
     display_menu(); // exbibe o menu com atualizado com a opção
     sleep_ms(300);
 }
+
 
 void execute_selection()
 {

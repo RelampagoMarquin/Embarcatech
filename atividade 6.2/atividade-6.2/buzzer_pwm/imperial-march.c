@@ -62,18 +62,20 @@ void play_tone(uint pin, float duration_ms)
 }
 
 // verifica os eventos no botão do analogico
-void sw_callback(uint gpio, uint32_t events) {
+void sw_callback_buzzer(uint gpio, uint32_t events) {
     sw_pressed = true;  // Marca que o botão foi pressionado
 }
 
 // verifica interação do botão
 void setup_sw_interrupt(uint16_t sw_value) {
-    gpio_set_irq_enabled_with_callback(sw_value, GPIO_IRQ_EDGE_FALL, true, &sw_callback);
+    gpio_set_irq_enabled_with_callback(sw_value, GPIO_IRQ_EDGE_FALL, true, &sw_callback_buzzer);
 }
 
 // Função principal para tocar a música
 void play_star_wars(uint pin, uint16_t sw_value)
 {
+    sleep_ms(50); // para evitar o bouce
+    sw_pressed = false; // garantir que o estado do botão começa como false
     int again = true;
     setup_sw_interrupt(sw_value); // Ativa a interrupção no botão SW
     while (again)

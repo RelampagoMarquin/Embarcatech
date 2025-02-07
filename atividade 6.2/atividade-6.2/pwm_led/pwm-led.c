@@ -9,6 +9,7 @@ const float DIVIDER_PWM = 16.0; // Divisor fracional do clock para o PWM
 const uint16_t LED_STEP = 100;  // Passo de incremento/decremento para o duty cycle do LED
 uint16_t led_level = 100;       // Nível inicial do PWM (duty cycle)
 
+volatile bool is_sw_pressed = false;
 void setup_pwm()
 {
     uint slice;
@@ -20,16 +21,24 @@ void setup_pwm()
     pwm_set_enabled(slice, true);          // Habilita o PWM no slice correspondente
 }
 
+// verifica os eventos no botão do analogico
+void sw_callback_pwm(uint gpio, uint32_t events) {
+    is_sw_pressed = true;  // Marca que o botão foi pressionado
+}
+
 void main_pwm_led(uint16_t sw_value)
 {
+    sleep_ms(50); // para evitar o bouce
     uint up_down = 1; // Variável para controlar se o nível do LED aumenta ou diminui
     stdio_init_all(); // Inicializa o sistema padrão de I/O
     setup_pwm();      // Configura o PWM
+    // ativa o monitor de eventos para o botao do analogico
+    is_sw_pressed = false; // garantir que o estado do botão começa como false
+    gpio_set_irq_enabled_with_callback(sw_value, GPIO_IRQ_EDGE_FALL, true, &sw_callback_pwm);
     int again = true; // variavel de controle
     while (again)
     {
         pwm_set_gpio_level(LED, led_level); // Define o nível atual do PWM (duty cycle)
-        sleep_ms(1000);                     // Atraso de 1 segundo
         if (up_down)
         {
             led_level += LED_STEP; // Incrementa o nível do LED
@@ -42,7 +51,8 @@ void main_pwm_led(uint16_t sw_value)
             if (led_level <= LED_STEP)
                 up_down = 1; // Muda direção para aumentar quando atingir o mínimo
         }
-        if (!gpio_get(sw_value))
+        sleep_ms(1000);                     // Atraso de 1 segundo
+        if (is_sw_pressed)
         {
             pwm_set_gpio_level(LED, 0); // reseta o led para o 0
             again = false; // acaba o loop e sai da função
