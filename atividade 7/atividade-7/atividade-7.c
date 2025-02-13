@@ -335,7 +335,7 @@ int wifi_connect()
         ssd1306_draw_string(ssd, 5, 20, "Erro ao iniciar");
         ssd1306_draw_string(ssd, 5, 40, "   o Wi-Fi");
         render_on_display(ssd, &frame_area);
-        sleep_ms(1000);
+        sleep_ms(2000);
         return 1;
     }
 
@@ -346,7 +346,7 @@ int wifi_connect()
     ssd1306_draw_string(ssd, 5, 20, "Conectando WiFi");
     ssd1306_draw_string(ssd, 5, 40, "Aguarde...");
     render_on_display(ssd, &frame_area);
-    sleep_ms(1000);
+    sleep_ms(2000);
 
     if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000))
     {
@@ -356,7 +356,7 @@ int wifi_connect()
         ssd1306_draw_string(ssd, 5, 20, "Falha na");
         ssd1306_draw_string(ssd, 5, 30, "conexão");
         render_on_display(ssd, &frame_area);
-        sleep_ms(1000);
+        sleep_ms(2000);
         return 1;
     }
     else
@@ -373,7 +373,7 @@ int wifi_connect()
         snprintf(buffer, sizeof(buffer), "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
         ssd1306_draw_string(ssd, 5, 32, buffer);
         render_on_display(ssd, &frame_area);
-        sleep_ms(1000);
+        sleep_ms(5000);
         return 0;
     }
 }
