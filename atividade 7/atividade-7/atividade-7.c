@@ -9,9 +9,6 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
-#include <stdbool.h>
-
-#define DEBOUNCE_DELAY 200 // Delay em milissegundos para debounce
 
 // Definição dos pinos do joystick e do botão
 #define VRX 26
@@ -263,6 +260,7 @@ void espera_com_leitura(int timeMS)
     }
 }
 
+// apaga todos os Led
 void apagar_led(int intervalo)
 {
     espera_com_leitura(intervalo);
@@ -272,6 +270,7 @@ void apagar_led(int intervalo)
     espera_com_leitura(intervalo);
 }
 
+// faz a função de monitorar (pisca o led de acordo com a frenquecia e na cor do nivel de glicose)
 void monitoramento(int glicemia, int frequencia_cardiaca)
 {
     int intervalo = 60000 / frequencia_cardiaca / 2; // Tempo de um ciclo (ms) / 2
@@ -301,6 +300,7 @@ void monitoramento(int glicemia, int frequencia_cardiaca)
     apagar_led(intervalo); // apaga o led
 }
 
+// mostra no display a frequencia cardiaca e a glicose
 void exibe_situcao(int freq_cardiaca, int glice)
 {
     struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
@@ -326,6 +326,7 @@ int main()
     setup_led();
     while (true)
     {
+        // ativa o menu para fazer configuração inicial dos inputs
         while (!a_state)
         {
             navigate_menu();
@@ -335,18 +336,21 @@ int main()
                 sleep_ms(300);
                 display_menu();
             }
-            if (!gpio_get(BTN_A_PIN))
+            if (!gpio_get(BTN_A_PIN)) // para sair do menu e iniciar a rotina
             {
                 a_state = true;
             }
         }
 
         sleep_ms(300);
-        
+
+        // rotina normal
         while (a_state)
         {
-            // rotina normal
-            exibe_situcao(frequencia_cardiaca, glicemia);
+            // mostra no display a frequencia cardiaca e a glicose
+            exibe_situcao(frequencia_cardiaca, glicemia); 
+
+            // faz a função de monitorar (pisca o led de acordo com a frenquecia e na cor do nivel de glicose)
             monitoramento(glicemia, frequencia_cardiaca);
         }
     }
