@@ -9,6 +9,9 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
+#include "wifi_parametros.h"
+#include "pico/cyw43_arch.h"
+#include "lwip/tcp.h"
 
 // Definição dos pinos do joystick e do botão
 #define VRX 26
@@ -317,13 +320,80 @@ void exibe_situcao(int freq_cardiaca, int glice)
     render_on_display(ssd, &frame_area);
 }
 
+// Função para conectar ao Wi-Fi
+int wifi_connect()
+{
+
+    struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
+
+    // Inicializa o Wi-Fi
+    if (cyw43_arch_init())
+    {
+        calculate_render_area_buffer_length(&frame_area);
+        uint8_t ssd[ssd1306_buffer_length];
+        memset(ssd, 0, ssd1306_buffer_length);
+        ssd1306_draw_string(ssd, 5, 20, "Erro ao iniciar");
+        ssd1306_draw_string(ssd, 5, 40, "   o Wi-Fi");
+        render_on_display(ssd, &frame_area);
+        sleep_ms(1000);
+        return 1;
+    }
+
+    cyw43_arch_enable_sta_mode();
+    calculate_render_area_buffer_length(&frame_area);
+    uint8_t ssd[ssd1306_buffer_length];
+    memset(ssd, 0, ssd1306_buffer_length);
+    ssd1306_draw_string(ssd, 5, 20, "Conectando WiFi");
+    ssd1306_draw_string(ssd, 5, 40, "Aguarde...");
+    render_on_display(ssd, &frame_area);
+    sleep_ms(1000);
+
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000))
+    {
+        calculate_render_area_buffer_length(&frame_area);
+        uint8_t ssd[ssd1306_buffer_length];
+        memset(ssd, 0, ssd1306_buffer_length);
+        ssd1306_draw_string(ssd, 5, 20, "Falha na");
+        ssd1306_draw_string(ssd, 5, 30, "conexão");
+        render_on_display(ssd, &frame_area);
+        sleep_ms(1000);
+        return 1;
+    }
+    else
+    {
+        calculate_render_area_buffer_length(&frame_area);
+        uint8_t ssd[ssd1306_buffer_length];
+        memset(ssd, 0, ssd1306_buffer_length);
+        ssd1306_draw_string(ssd, 5, 10, "Conectado");
+
+        // Read the ip address in a human readable way
+        uint8_t *ip_address = (uint8_t *)&(cyw43_state.netif[0].ip_addr.addr);
+        ssd1306_draw_string(ssd, 5, 24, "Endereço IP ");
+        char buffer[22] = {0};
+        snprintf(buffer, sizeof(buffer), "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+        ssd1306_draw_string(ssd, 5, 32, buffer);
+        render_on_display(ssd, &frame_area);
+        sleep_ms(1000);
+        return 0;
+    }
+}
+
 int main()
 {
     setup_joystick();
     init_oled();
     setup_botoes();
-    display_menu();
     setup_led();
+
+    int conectado = 1;
+    // tenta conectar ate conseguir
+    if (conectado == 1)
+    {
+        conectado = wifi_connect();
+    }
+    
+    display_menu();
+
     while (true)
     {
         // ativa o menu para fazer configuração inicial dos inputs
@@ -348,7 +418,7 @@ int main()
         while (a_state)
         {
             // mostra no display a frequencia cardiaca e a glicose
-            exibe_situcao(frequencia_cardiaca, glicemia); 
+            exibe_situcao(frequencia_cardiaca, glicemia);
 
             // faz a função de monitorar (pisca o led de acordo com a frenquecia e na cor do nivel de glicose)
             monitoramento(glicemia, frequencia_cardiaca);
