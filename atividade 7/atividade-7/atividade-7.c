@@ -9,6 +9,9 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
+#include <stdbool.h>
+
+#define DEBOUNCE_DELAY 200 // Delay em milissegundos para debounce
 
 // Definição dos pinos do joystick e do botão
 #define VRX 26
@@ -26,17 +29,27 @@
 
 // buzzer
 #define BUZZER_PIN 21
-volatile int sw_pressed = 1; // Variável que verifica o botão SW
+volatile bool sw_pressed = false; // Variável que verifica o botão SW
 
 // variaveis do menu
 const char *menu_options[] = {"BATIMENTOS", "GLICEMIA"};
 int menu_index = 0;
-int total_options = 3;
+int total_options = 2;
+volatile int no_menu = 1;
 
 // variaveis de monitoramento
 volatile int frequencia_cardiaca = 80;
 volatile int glicemia = 100;
 
+// botoões
+// pino do botão A
+#define BTN_A_PIN 5
+#define BTN_B_PIN 6
+
+volatile bool a_state = false; // Botao A está pressionado?
+volatile bool b_state = false; // Botao A está pressionado?
+
+uint32_t last_button_press_time = 0;
 // inicializa o joystick
 void setup_joystick()
 {
@@ -46,6 +59,31 @@ void setup_joystick()
     gpio_init(SW);
     gpio_set_dir(SW, GPIO_IN);
     gpio_pull_up(SW);
+}
+
+// inicializa o led
+void led_setup()
+{
+    gpio_init(LED_R_PIN);
+    gpio_set_dir(LED_R_PIN, GPIO_OUT);
+    gpio_init(LED_G_PIN);
+    gpio_set_dir(LED_G_PIN, GPIO_OUT);
+    gpio_init(LED_B_PIN);
+    gpio_set_dir(LED_B_PIN, GPIO_OUT);
+}
+
+// inicializa os botões
+void setup_botoes()
+{
+    // INICIANDO BOTÄO A
+    gpio_init(BTN_A_PIN);
+    gpio_set_dir(BTN_A_PIN, GPIO_IN);
+    gpio_pull_up(BTN_A_PIN);
+
+    // INICIANDO BOTÄO B
+    gpio_init(BTN_B_PIN);
+    gpio_set_dir(BTN_B_PIN, GPIO_IN);
+    gpio_pull_up(BTN_B_PIN);
 }
 
 // função de inicializar o OLED
@@ -110,8 +148,25 @@ void navigate_menu()
     sleep_ms(300);
 }
 
+// Sub Menu para exibir após escolher uma função
+void exibe_ajuste(int valor, char *nome)
+{
+    struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
+    calculate_render_area_buffer_length(&frame_area);
+    uint8_t ssd[ssd1306_buffer_length];
+    memset(ssd, 0, ssd1306_buffer_length);
+
+    char buffer[22] = {0};
+    snprintf(buffer, sizeof(buffer), "- %d +", valor);
+    ssd1306_draw_string(ssd, 10, 10, "ajuste o valor");
+    ssd1306_draw_string(ssd, 40, 20, nome);
+    ssd1306_draw_string(ssd, 30, 42, buffer);
+
+    render_on_display(ssd, &frame_area);
+}
+
 // Função de ajuste de frequencia cardiaca
-int ajustar_batimento(int frequencia_cardiaca)
+void ajustar_batimento()
 {
     uint16_t vrx_value, vry_value;
     joystick_read_axis(&vrx_value, &vry_value);
@@ -119,11 +174,11 @@ int ajustar_batimento(int frequencia_cardiaca)
     // Ajusta a frequência cardíaca baseado no valor do analógico
     if (vrx_value > 3000)
     {
-        frequencia_cardiaca += 1;
+        frequencia_cardiaca += 5;
     }
     else if (vrx_value < 1000)
     {
-        frequencia_cardiaca -= 1;
+        frequencia_cardiaca -= 5;
     }
 
     // Limita a faixa da frequência cardíaca
@@ -131,21 +186,10 @@ int ajustar_batimento(int frequencia_cardiaca)
         frequencia_cardiaca = 40;
     if (frequencia_cardiaca > 180)
         frequencia_cardiaca = 180;
-
-    // Exibe no display
-    char buffer[16];
-    snprintf(buffer, sizeof(buffer), "- %d +", frequencia_cardiaca);
-    struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
-    uint8_t ssd[ssd1306_buffer_length];
-    memset(ssd, 0, ssd1306_buffer_length);
-    ssd1306_draw_string(ssd, 5, 30, buffer);
-    render_on_display(ssd, &frame_area);
-
-    return frequencia_cardiaca;
 }
 
 // Função de ajuste de glicemia
-int ajustar_glicemia(int glicemia)
+int ajustar_glicemia()
 {
     uint16_t vrx_value, vry_value;
     joystick_read_axis(&vrx_value, &vry_value);
@@ -165,30 +209,46 @@ int ajustar_glicemia(int glicemia)
         glicemia = 50;
     if (glicemia > 160)
         glicemia = 160;
+}
 
-    // Exibe no display
-    char buffer[16];
-    snprintf(buffer, sizeof(buffer), "- %d +", glicemia);
-    struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
-    uint8_t ssd[ssd1306_buffer_length];
-    memset(ssd, 0, ssd1306_buffer_length);
-    ssd1306_draw_string(ssd, 5, 30, buffer);
-    render_on_display(ssd, &frame_area);
-
-    return glicemia;
+void finalizar_menu()
+{
+    // tudo
 }
 
 void execute_selection()
 {
+    sleep_ms(300);
     switch (menu_index)
     {
     case 0:
         // ajustar batimento
+        while (!b_state)
+        {
+            exibe_ajuste(frequencia_cardiaca, "BPM");
+            ajustar_batimento();
+            sleep_ms(300);
+            if (!gpio_get(BTN_B_PIN)) // Verifica se o botão foi pressionada
+            {
+                b_state = true;
+            }
+        }
         break;
     case 1:
         // ajustar glicemia
+        while (!b_state)
+        {
+            exibe_ajuste(glicemia, "GLC");
+            ajustar_glicemia();
+            sleep_ms(300);
+            if (!gpio_get(BTN_B_PIN)) // Verifica se o botão foi pressionada
+            {
+                b_state = true;
+            }
+        }
         break;
     }
+    b_state = false;
 }
 
 void espera_com_leitura(int timeMS)
@@ -200,22 +260,6 @@ void espera_com_leitura(int timeMS)
             sw_pressed = 1;
         }
         sleep_ms(100);
-    }
-}
-
-void chama_menu()
-{
-    // verifica se foi ativado o menu
-    if (sw_pressed == 1)
-    {
-        navigate_menu();
-        if (!gpio_get(SW)) // Verifica se o botão foi pressionada
-        {
-            execute_selection();
-            sleep_ms(300);
-            display_menu();
-        }
-        sw_pressed = 0;
     }
 }
 
@@ -273,34 +317,34 @@ void exibe_situcao(int freq_cardiaca, int glice)
     render_on_display(ssd, &frame_area);
 }
 
-void led_setup()
-{
-    gpio_init(LED_R_PIN);
-    gpio_set_dir(LED_R_PIN, GPIO_OUT);
-    gpio_init(LED_G_PIN);
-    gpio_set_dir(LED_G_PIN, GPIO_OUT);
-    gpio_init(LED_B_PIN);
-    gpio_set_dir(LED_B_PIN, GPIO_OUT);
-}
-
 int main()
 {
     setup_joystick();
-    led_setup();
     init_oled();
+    setup_botoes();
     display_menu();
-
     while (true)
     {
-        if (sw_pressed == 1)
+        while (!a_state)
         {
-            sleep_ms(300);
-            chama_menu();
-            sw_pressed = 0;
+            navigate_menu();
+            if (!gpio_get(SW)) // Verifica se o botão foi pressionada
+            {
+                execute_selection();
+                sleep_ms(300);
+                display_menu();
+            }
+            if (!gpio_get(BTN_A_PIN))
+            {
+                a_state = true;
+            }
+            
         }
+
+        a_state = false;
+
         // rotina normal
-        exibe_situcao(frequencia_cardiaca, glicemia);
-        monitoramento(glicemia, frequencia_cardiaca);
+        // exibe_situcao(frequencia_cardiaca, glicemia);
+        // monitoramento(glicemia, frequencia_cardiaca);
     }
-    sleep_ms(300);
 }
