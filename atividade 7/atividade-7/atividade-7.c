@@ -62,7 +62,7 @@ void setup_joystick()
 }
 
 // inicializa o led
-void led_setup()
+void setup_led()
 {
     gpio_init(LED_R_PIN);
     gpio_set_dir(LED_R_PIN, GPIO_OUT);
@@ -197,11 +197,11 @@ int ajustar_glicemia()
     // Ajusta a frequência cardíaca baseado no valor do analógico
     if (vrx_value > 3000)
     {
-        glicemia += 1;
+        glicemia += 5;
     }
     else if (vrx_value < 1000)
     {
-        glicemia -= 1;
+        glicemia -= 5;
     }
 
     // Limita a faixa da frequência cardíaca
@@ -255,9 +255,9 @@ void espera_com_leitura(int timeMS)
 {
     for (int i = 0; i < timeMS; i += 100)
     {
-        if (!gpio_get(SW)) // Verifica se o botão foi pressionado
+        if (!gpio_get(BTN_A_PIN)) // Verifica se o botão foi pressionado
         {
-            sw_pressed = 1;
+            a_state = false;
         }
         sleep_ms(100);
     }
@@ -323,6 +323,7 @@ int main()
     init_oled();
     setup_botoes();
     display_menu();
+    setup_led();
     while (true)
     {
         while (!a_state)
@@ -338,13 +339,15 @@ int main()
             {
                 a_state = true;
             }
-            
         }
 
-        a_state = false;
-
-        // rotina normal
-        // exibe_situcao(frequencia_cardiaca, glicemia);
-        // monitoramento(glicemia, frequencia_cardiaca);
+        sleep_ms(300);
+        
+        while (a_state)
+        {
+            // rotina normal
+            exibe_situcao(frequencia_cardiaca, glicemia);
+            monitoramento(glicemia, frequencia_cardiaca);
+        }
     }
 }
