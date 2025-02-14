@@ -9,9 +9,8 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
-#include "wifi_parametros.h"
-#include "pico/cyw43_arch.h"
-#include "lwip/tcp.h"
+#include "thing_speak/thing-speak.h"
+#include <time.h>
 
 // Definição dos pinos do joystick e do botão
 #define VRX 26
@@ -49,7 +48,6 @@ volatile int glicemia = 100;
 volatile bool a_state = false; // Botao A está pressionado?
 volatile bool b_state = false; // Botao A está pressionado?
 
-uint32_t last_button_press_time = 0;
 // inicializa o joystick
 void setup_joystick()
 {
@@ -320,82 +318,51 @@ void exibe_situcao(int freq_cardiaca, int glice)
     render_on_display(ssd, &frame_area);
 }
 
-// Função para conectar ao Wi-Fi
-int wifi_connect()
+// Função auxiliar para variar o valor
+int variar_valor(int valor, int limite_min, int limite_max)
 {
+    int variacao = (rand() % 20) + 1;
 
-    struct render_area frame_area = {0, ssd1306_width - 1, 0, ssd1306_n_pages - 1};
-
-    // Inicializa o Wi-Fi
-    if (cyw43_arch_init())
+    if (valor >= (limite_min + 10) & valor <= limite_max)
     {
-        calculate_render_area_buffer_length(&frame_area);
-        uint8_t ssd[ssd1306_buffer_length];
-        memset(ssd, 0, ssd1306_buffer_length);
-        ssd1306_draw_string(ssd, 5, 20, "Erro ao iniciar");
-        ssd1306_draw_string(ssd, 5, 40, "   o Wi-Fi");
-        render_on_display(ssd, &frame_area);
-        sleep_ms(2000);
-        return 1;
+        valor -= variacao;
+    }
+    else if (valor >= limite_min & valor <= (limite_max - 20))
+    {
+        valor += variacao;
     }
 
-    cyw43_arch_enable_sta_mode();
-    calculate_render_area_buffer_length(&frame_area);
-    uint8_t ssd[ssd1306_buffer_length];
-    memset(ssd, 0, ssd1306_buffer_length);
-    ssd1306_draw_string(ssd, 5, 20, "Conectando WiFi");
-    ssd1306_draw_string(ssd, 5, 40, "Aguarde...");
-    render_on_display(ssd, &frame_area);
-    sleep_ms(2000);
-
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASS, CYW43_AUTH_WPA2_AES_PSK, 10000))
-    {
-        calculate_render_area_buffer_length(&frame_area);
-        uint8_t ssd[ssd1306_buffer_length];
-        memset(ssd, 0, ssd1306_buffer_length);
-        ssd1306_draw_string(ssd, 5, 20, "Falha na");
-        ssd1306_draw_string(ssd, 5, 30, "conexão");
-        render_on_display(ssd, &frame_area);
-        sleep_ms(2000);
-        return 1;
-    }
-    else
-    {
-        calculate_render_area_buffer_length(&frame_area);
-        uint8_t ssd[ssd1306_buffer_length];
-        memset(ssd, 0, ssd1306_buffer_length);
-        ssd1306_draw_string(ssd, 5, 10, "Conectado");
-
-        // Read the ip address in a human readable way
-        uint8_t *ip_address = (uint8_t *)&(cyw43_state.netif[0].ip_addr.addr);
-        ssd1306_draw_string(ssd, 5, 24, "Endereço IP ");
-        char buffer[22] = {0};
-        snprintf(buffer, sizeof(buffer), "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-        ssd1306_draw_string(ssd, 5, 32, buffer);
-        render_on_display(ssd, &frame_area);
-        sleep_ms(5000);
-        return 0;
-    }
+    return valor;
 }
 
+// função para variar os dados automaticamente
+void atualizar_dados()
+{
+    // Variação dos dados
+    glicemia = variar_valor(glicemia, 50, 160);
+    frequencia_cardiaca = variar_valor(frequencia_cardiaca, 60, 180);
+}
+
+void verifica_conexao()
+{
+    // caso não esteja conectado ele vai inicar a função de conectar
+    if (!is_wifi_connected())
+    {
+        conectar_wifi(ssd1306_width, ssd1306_n_pages, ssd1306_buffer_length);
+    }
+}
 int main()
 {
     setup_joystick();
     init_oled();
     setup_botoes();
     setup_led();
-
-    int conectado = 1;
-    // tenta conectar ate conseguir
-    if (conectado == 1)
-    {
-        conectado = wifi_connect();
-    }
-    
     display_menu();
 
     while (true)
     {
+        // verifica se está conectado ao wifi
+        verifica_conexao();
         // ativa o menu para fazer configuração inicial dos inputs
         while (!a_state)
         {
@@ -414,6 +381,7 @@ int main()
 
         sleep_ms(300);
 
+        int contador = 0; // contador para alterar dados
         // rotina normal
         while (a_state)
         {
@@ -422,6 +390,19 @@ int main()
 
             // faz a função de monitorar (pisca o led de acordo com a frenquecia e na cor do nivel de glicose)
             monitoramento(glicemia, frequencia_cardiaca);
+
+            // a cada 10 loop ele altera o valor que será enviado ao thinkspeak
+            
+            if (contador == 10)
+            {
+                atualizar_dados();
+                contador = 0; // reseta o contador
+            }
+
+            contador += 1;
+
+            // faz o envio para o thinkSpeak
+            send_data_to_thingspeak(frequencia_cardiaca, glicemia);
         }
     }
 }

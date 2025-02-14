@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(atividade-7 atividade-7.c inc/ssd1306_i2c.c)
+add_executable(atividade-7 atividade-7.c inc/ssd1306_i2c.c thing_speak/thing-speak.c)
 
 pico_set_program_name(atividade-7 "atividade-7")
 pico_set_program_version(atividade-7 "0.1")
