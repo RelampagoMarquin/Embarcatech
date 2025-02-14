@@ -96,6 +96,43 @@ void init_oled()
     ssd1306_init();
 }
 
+// Inicializa o PWM no pino do buzzer
+void pwm_init_buzzer(uint pin, int FREQ_ALERTA)
+{
+    // Configurar o pino como saída de PWM
+    gpio_set_function(pin, GPIO_FUNC_PWM);
+
+    // Obter o slice do PWM associado ao pino
+    uint slice_num = pwm_gpio_to_slice_num(pin);
+
+    // Configurar o PWM com frequência desejada
+    pwm_config config = pwm_get_default_config();
+    pwm_config_set_clkdiv(&config, clock_get_hz(clk_sys) / (FREQ_ALERTA * 28672)); // Divisor de clock
+    pwm_init(slice_num, &config, true);
+
+    // Iniciar o PWM no nível baixo
+    pwm_set_gpio_level(pin, 0);
+}
+
+// Toca uma nota com a frequência e duração especificadas
+void play_tone(uint pin, float duration_ms)
+{
+    // Obter o slice do PWM associado ao pino
+    uint slice_num = pwm_gpio_to_slice_num(pin);
+
+    // Configurar o duty cycle para 50% (ativo)
+    pwm_set_gpio_level(pin, 2048);
+
+    // Temporização
+    sleep_ms(duration_ms);
+
+    // Desativar o sinal PWM (duty cycle 0)
+    pwm_set_gpio_level(pin, 0);
+
+    // Pausa entre os beeps
+    sleep_ms(100); // Pausa de 100ms
+}
+
 // função de leitura do joystick
 void joystick_read_axis(uint16_t *vrx_value, uint16_t *vry_value)
 {
@@ -221,32 +258,32 @@ void execute_selection()
     {
     case 0:
         // ajustar batimento
-        while (!b_state)
+        while (!sw_pressed)
         {
             exibe_ajuste(frequencia_cardiaca, "BPM");
             ajustar_batimento();
             sleep_ms(300);
-            if (!gpio_get(BTN_B_PIN)) // Verifica se o botão foi pressionada
+            if (!gpio_get(SW)) // Verifica se o botão foi pressionada
             {
-                b_state = true;
+                sw_pressed = true;
             }
         }
         break;
     case 1:
         // ajustar glicemia
-        while (!b_state)
+        while (!sw_pressed)
         {
             exibe_ajuste(glicemia, "GLC");
             ajustar_glicemia();
             sleep_ms(300);
-            if (!gpio_get(BTN_B_PIN)) // Verifica se o botão foi pressionada
+            if (!gpio_get(SW)) // Verifica se o botão foi pressionada
             {
-                b_state = true;
+                sw_pressed = true;
             }
         }
         break;
     }
-    b_state = false;
+    sw_pressed = false;
 }
 
 void espera_com_leitura(int timeMS)
@@ -282,6 +319,16 @@ void monitoramento(int glicemia, int frequencia_cardiaca)
         gpio_put(LED_R_PIN, 1);
         gpio_put(LED_G_PIN, 0);
         gpio_put(LED_B_PIN, 0);
+
+        // aciona o alarme
+        if(!b_state){
+            pwm_init_buzzer(BUZZER_PIN, 200);
+            play_tone(BUZZER_PIN, 500);
+            if(!gpio_get(BTN_B_PIN)){
+                b_state = true;
+            }
+        }
+        
     }
     else if ((glicemia >= 70 && glicemia <= 75) || (glicemia >= 135 && glicemia <= 140))
     {
@@ -366,6 +413,7 @@ int main()
         // ativa o menu para fazer configuração inicial dos inputs
         while (!a_state)
         {
+            b_state = false;
             navigate_menu();
             if (!gpio_get(SW)) // Verifica se o botão foi pressionada
             {
