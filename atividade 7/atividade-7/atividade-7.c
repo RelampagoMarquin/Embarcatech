@@ -321,14 +321,15 @@ void monitoramento(int glicemia, int frequencia_cardiaca)
         gpio_put(LED_B_PIN, 0);
 
         // aciona o alarme
-        if(!b_state){
+        if (!b_state)
+        {
             pwm_init_buzzer(BUZZER_PIN, 200);
             play_tone(BUZZER_PIN, 500);
-            if(!gpio_get(BTN_B_PIN)){
+            if (!gpio_get(BTN_B_PIN))
+            {
                 b_state = true;
             }
         }
-        
     }
     else if ((glicemia >= 70 && glicemia <= 75) || (glicemia >= 135 && glicemia <= 140))
     {
@@ -393,7 +394,7 @@ void atualizar_dados()
 void verifica_conexao()
 {
     // caso não esteja conectado ele vai inicar a função de conectar
-    if (!is_wifi_connected())
+    while(!is_wifi_connected())
     {
         conectar_wifi(ssd1306_width, ssd1306_n_pages, ssd1306_buffer_length);
     }
@@ -406,10 +407,10 @@ int main()
     setup_led();
     display_menu();
 
+    // verifica se está conectado ao wifi
+    verifica_conexao();
     while (true)
     {
-        // verifica se está conectado ao wifi
-        verifica_conexao();
         // ativa o menu para fazer configuração inicial dos inputs
         while (!a_state)
         {
@@ -427,7 +428,7 @@ int main()
             }
         }
 
-        sleep_ms(300);
+        sleep_ms(500); // para evitat o bouce
 
         int contador = 0; // contador para alterar dados
         // rotina normal
@@ -440,7 +441,7 @@ int main()
             monitoramento(glicemia, frequencia_cardiaca);
 
             // a cada 10 loop ele altera o valor que será enviado ao thinkspeak
-            
+
             if (contador == 10)
             {
                 atualizar_dados();
@@ -448,6 +449,9 @@ int main()
             }
 
             contador += 1;
+
+            // verifica se está conectado ao wifi
+            verifica_conexao();
 
             // faz o envio para o thinkSpeak
             send_data_to_thingspeak(frequencia_cardiaca, glicemia);
